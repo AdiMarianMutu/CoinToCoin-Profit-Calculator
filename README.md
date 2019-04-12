@@ -11,8 +11,8 @@ If you find a bug please send me an e-mail to **mutu.adi.marian@gmail.com** (mos
 
 ## How does work?
 
-The script uses [CryptoCompare's API](https://min-api.cryptocompare.com/) to connect to an exchange choose by you.
-Keep in mind to verify that the chosed exchange has the coin pair you want to get the informations about.<br>
+The script uses [CryptoCompare's API](https://min-api.cryptocompare.com/) to connect to an exchange choose by you.<br>
+Keep in mind to verify that the chosen exchange has the coin pair you want to get the informations about.<br>
 As example [Kraken](https://www.kraken.com) exchange doesn't have the pair for DGB-LTC, but don't worry, the script will give you a clear error if this will happen.<br>
 You can get a list with all the exchanges and respective coin pair [here](https://min-api.cryptocompare.com/data/v2/all/exchanges) (the list is in json format)
 
