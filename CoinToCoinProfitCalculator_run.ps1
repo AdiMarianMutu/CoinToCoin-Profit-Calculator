@@ -29,7 +29,7 @@ fiat=GBP
 # In order to calculate the swap profit, you need to add every swap you did by writing them on a new line (minimum 1 swap required)
 #
 # Template of the swap info
-# [X/Y]Z/S
+# [X/Y]Z>S
 # X = From which coin you swapped (Example: DGB)
 # Y = Coin swapped to (Example: LTC)
 # Z = Amount of coin swapped (Example 25000 DGB)
