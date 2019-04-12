@@ -3,7 +3,7 @@ A simple and fast profit calculator to get % profits from cryptocurrencies swap
 
 ## How to use
 
-Just save or download the PowerShell script, right click on it and 'Run with PowerShell' then follow the on-screen instructions
+Just save or download the PowerShell script (click [here](https://github.com/Xxshark888xX/CoinToCoin-Profit-Calculator/blob/master/CoinToCoinProfitCalculator_run.ps1) to get it), right click on it and 'Run with PowerShell' then follow the on-screen instructions
 
 ## Found a bug?
 
