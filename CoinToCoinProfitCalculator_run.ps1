@@ -1,4 +1,4 @@
-﻿<#
+<#
 
 Script written for personal use by Mutu Adi-Marian (aka xs8 or Xxshark888xX) free for use without any license
 
@@ -29,7 +29,7 @@ fiat=GBP
 # In order to calculate the swap profit, you need to add every swap you did by writing them on a new line (minimum 1 swap required)
 #
 # Template of the swap info
-# [X/Y]Z>S
+# [X/Y]Z/S
 # X = From which coin you swapped (Example: DGB)
 # Y = Coin swapped to (Example: LTC)
 # Z = Amount of coin swapped (Example 25000 DGB)
@@ -187,11 +187,11 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         }
         write-host -NoNewline "`n";
 
-        #if the overall profit is greater than 0 will print the % in green otherwise in red
-        if ($baseCoinProfit -ge [decimal]$profitChange[$i + 2]) {
+        #if the current total profit is greater than 0 will print the % in green otherwise in red
+        if ($baseCoinProfit -ge 0) {
             write-host -NoNewline -ForegroundColor Green -BackgroundColor Black "Total Profit:   $([math]::abs($baseCoinProfit))%↑";
         } else {
-            write-host -NoNewline -ForegroundColor Red   -BackgroundColor Black "Total Profit:   $([math]::abs($baseCoinProfit))$baseCoinProfit%↓";
+            write-host -NoNewline -ForegroundColor Red   -BackgroundColor Black "Total Profit:   $([math]::abs($baseCoinProfit))%↓";
         }
 
         if ($profitChangeActive -eq $true) {
@@ -233,7 +233,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
                 } else { $_profitChange = $_indProfit; }
 
                 #if the profit change is greater than 0 will print the % in green otherwise in red
-                if ($_indProfit -ge [decimal]$profitChange[$i + 3]) {
+                if ($_indProfit -ge 0) {
                     write-host -ForegroundColor Green -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↑)`n";
                 } else {
                     write-host -ForegroundColor Red   -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↓)`n";
