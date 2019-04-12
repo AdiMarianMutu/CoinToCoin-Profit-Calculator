@@ -25,7 +25,7 @@ You can get a list with all the exchanges and respective coin pair [here](https:
 **Profit Difference Since (PDS)**:
   Calculates the *time passed* from the *last* time you *executed* the script, is calculated in *days*, *hours*, *minutes* and *seconds* passed.
   
-  Example: Total profit: +1.01% (PDS: -17.89%) - The PDS is of 13 seconds, this means that in 13 seconds my total profit decreased with 17.89%, so 13 seconds before my total profit was of +1.19%.
+  Example: Total profit: +1.01% (PDS: -17.89%) - The PDS is of 13 seconds, this means that in 13 seconds my total profit decreased of 17.89%, so 13 seconds before my total profit was of +1.19%.
   
 **Original value**:
   75000 DGB ([DigiByte](https://digibyte.io/)) - This is your total investment, is calculated by increasing the original value of every individual investment.
@@ -34,7 +34,7 @@ You can get a list with all the exchanges and respective coin pair [here](https:
   
 **Current value**
 
-  75759.9221 DGB ([DigiByte](https://digibyte.io/)) => 744.34 GBP PDS: -0.28% - This means that if I'll swap back all the coins to DGB ([DigiByte](https://digibyte.io/)) I'll get a **gross** profit of 759.9221 DGB ([DigiByte](https://digibyte.io/)) (+1.01%). And their value into the chosen fiat will be of 744.34 GBP (+-) and the PDS of 13 seconds for the current value into the chosen fiat decreased with 0.28%
+  75759.9221 DGB ([DigiByte](https://digibyte.io/)) => 744.34 GBP PDS: -0.28% - This means that if I'll swap back all the coins to DGB ([DigiByte](https://digibyte.io/)) I'll get a **gross** profit of 759.9221 DGB ([DigiByte](https://digibyte.io/)) (+1.01%). And their value into the chosen fiat will be of 744.34 GBP (+-) and the PDS of 13 seconds for the current value into the chosen fiat decreased of 0.28%
   
 ### {Individual profit}
 
