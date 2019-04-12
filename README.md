@@ -34,7 +34,7 @@ You can get a list with all the exchanges and respective coin pair [here](https:
   
 **Current value**
 
-  75759.9221 DGB ([DigiByte](https://digibyte.io/)) => 744.34 GBP PDS: -0.28% - This means that if I'll swap back all the coins to DGB ([DigiByte](https://digibyte.io/)) I'll get a **gross** profit of 5759.9221 DGB ([DigiByte](https://digibyte.io/)) (+1.01%). And their value into the chosen fiat will be of 744.34 GBP (+-) and the PDS of 13 seconds for the current value into the chosen fiat decreased with 0.28%
+  75759.9221 DGB ([DigiByte](https://digibyte.io/)) => 744.34 GBP PDS: -0.28% - This means that if I'll swap back all the coins to DGB ([DigiByte](https://digibyte.io/)) I'll get a **gross** profit of 759.9221 DGB ([DigiByte](https://digibyte.io/)) (+1.01%). And their value into the chosen fiat will be of 744.34 GBP (+-) and the PDS of 13 seconds for the current value into the chosen fiat decreased with 0.28%
   
 ### {Individual profit}
 
