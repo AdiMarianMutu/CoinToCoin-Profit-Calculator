@@ -8,12 +8,10 @@ The main usecase for this script is when you swapped a coin (example: DGB - Digi
 #>
 
 Add-Type -AssemblyName System.Windows.Forms;
-[console]::WindowWidth=100; [console]::WindowHeight=35;
-
-
 
 
 write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v1.0.1`n`n`n";
+[console]::WindowWidth=100; [console]::WindowHeight=35;
 
 # Default value for the "main" file
 $fileDefaultValue = "# Isn't mandatory to have an API Key to use CryptoCompare's API
