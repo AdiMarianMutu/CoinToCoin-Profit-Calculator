@@ -7,7 +7,7 @@ The main usecase for this script is when you swapped a coin (example: DGB - Digi
 
 #>
 
-Add-Type -AssemblyName System.Windows.Forms;
+#Add-Type -AssemblyName System.Windows.Forms;
 
 
 write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v1.0.1`n`n`n";
@@ -252,12 +252,13 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         }
         Set-Content -Path "$($filePath)profit.tr" -Value $_traceFileValue;
 
-        # If the right mouse button is pressed the script will restart
-        write-host -NoNewline -ForegroundColor Yellow "`n`n`nRight click anywhere to refresh or just press 'E' to exit";
+        # If the 'R' is pressed the script will restart
+        write-host -NoNewline -ForegroundColor Yellow "`n`n`nPress 'R' to refresh or just press 'E' to exit";
         while($true) {
             if ($Host.UI.RawUI.ReadKey().Character -eq 'E') { break; } 
 
-            if ([Windows.Forms.UserControl]::MouseButtons -match "Right") {
+            #if ([Windows.Forms.UserControl]::MouseButtons -match "Right") {
+            elseif ($Host.UI.RawUI.ReadKey().Character -eq 'R') {
                 Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
 
                 break;
