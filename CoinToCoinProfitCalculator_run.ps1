@@ -71,7 +71,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         }
 
         #calculates the time passed from the last profit verification
-        $profitChange[0] = [string](new-timespan –start $([datetime]$profitChange[0]) –end $([datetime]$(Get-Date -format G)));
+        $profitChange[0] = [string](new-timespan –start $([datetime]$profitChange[0]) –end $([datetime]$(Get-Date -format U)));
         $profitChange[0] = $("{0} day(s) {1}h:{2}m:{3}s" -f $([timespan]$profitChange[0]).Days, $([timespan]$profitChange[0]).Hours, $([timespan]$profitChange[0]).Minutes, $([timespan]$profitChange[0]).Seconds);
     }
     
@@ -244,7 +244,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         }
 
         #updates the trace file with the current % profit to make a comparasion the next time
-        $_traceFileValue  = "$(Get-Date -Format G)`n"; #timestamp from last verification
+        $_traceFileValue  = "$(Get-Date -Format U)`n"; #timestamp from last verification
         $_traceFileValue += "$fiatValueTotal`n";
         $_traceFileValue += "$baseCoinProfit`n";
         for ($i = 0; $i -lt $pairCoin.Count; $i++) {
