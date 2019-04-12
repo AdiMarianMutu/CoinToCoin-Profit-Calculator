@@ -7,9 +7,13 @@ The main usecase for this script is when you swapped a coin (example: DGB - Digi
 
 #>
 
-write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v1.0`n`n`n";
-
+Add-Type -AssemblyName System.Windows.Forms;
 [console]::WindowWidth=100; [console]::WindowHeight=35;
+
+
+
+
+write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v1.0.1`n`n`n";
 
 # Default value for the "main" file
 $fileDefaultValue = "# Isn't mandatory to have an API Key to use CryptoCompare's API
@@ -250,8 +254,19 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         }
         Set-Content -Path "$($filePath)profit.tr" -Value $_traceFileValue;
 
-        if ((read-host "`n`n`nType 'R' and press 'ENTER' to refresh or just press 'ENTER' to exit") -eq 'R') {
-            Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
+        # If the right mouse button is pressed the script will restart
+        write-host -NoNewline -ForegroundColor Yellow "`n`n`nRight click anywhere to refresh or just press 'E' to exit";
+        while($true) {
+            if ($Host.UI.RawUI.ReadKey().Character -eq 'E') { break; } 
+
+            if ([Windows.Forms.UserControl]::MouseButtons -match "Right") {
+                Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
+
+                break;
+            }
+
+            # Used to avoid too much CPU consuming
+            Start-Sleep -Milliseconds 1;
         }
     } catch {
         Clear-Host;
