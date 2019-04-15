@@ -11,8 +11,8 @@ The main usecase for this script is when you swapped a coin (example: DGB - Digi
 
 
 clear-host;
-write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v1.1`n`n";
-[console]::WindowWidth=100; [console]::WindowHeight=35;
+write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v2.0`n`n";
+[console]::WindowWidth=111; [console]::WindowHeight=37;
 
 # FUNCTIONS #
 
@@ -32,14 +32,21 @@ function CalculatePercent {
 # Used for the 'Refresh or exit' question
 function RefreshExitLoop {
     # If the 'R' is pressed the script will restart
-    write-host -NoNewline -ForegroundColor Yellow "`n`nPress 'R' to refresh or just press 'E' to exit";
+    write-host -NoNewline -ForegroundColor Yellow "`n`nPress 'R' to refresh or any key to exit";
 
-    if ($Host.UI.RawUI.ReadKey().Character -eq 'R') {
-        Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
+    while ($true) {
+        if ($Host.UI.RawUI.ReadKey().Character -eq 'R') {
+            Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
+
+            break;
+        } else { break; }
+
+        start-sleep -Milliseconds 1;
     }
 
     Stop-Process -Id $PID;
 }
+
 
 # Default value for the "main" file
 $fileDefaultValue = "# Isn't mandatory to have an API Key to use CryptoCompare's API
@@ -238,34 +245,47 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
 
             #if the profit change is greater than the last profit will print the % in green otherwise in red
             if ($baseCoinProfit -ge [decimal]$profitChange[2]) {
-                write-host -ForegroundColor Green -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↑)`n`n`n`n";
+                write-host -ForegroundColor Green -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↑)`n`n";
             } else {
-                write-host -ForegroundColor Red   -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↓)`n`n`n`n";
+                write-host -ForegroundColor Red   -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↓)`n`n";
             }
-        } else { write-host "`n`n`n`n"; } 
+        } else { write-host "`n`n"; }
 
 
-        #calculates the individual % profit
+        # ======================= #
+        # INDIVIDUAL PROFIT TABLE #
+        # ======================= #
+
+        #array which will contain the profit for each coin
         $_indNewProfit = New-Object decimal[] $pairCoin.Count;
 
-        write-host -ForegroundColor Yellow "{Individual profit}`n"
+        #prints a profit table
+        write-host -ForegroundColor Yellow -BackgroundColor Black "-                                            [INDIVIDUAL PROFITS]                                             -";
+        write-host -ForegroundColor Yellow "|==============|============|=================|================|==============================================|";
+        write-host -ForegroundColor Yellow "|     From     |     To     |      Profit     |       PDS      |                    Details                   |";
+        write-host -ForegroundColor Yellow "|-------------------------------------------------------------------------------------------------------------|";
 
         for ($i = 0; $i -lt $pairCoin.Count; $i++) {
             $_indBaseCoinCurrentAmount = [decimal]$pairCoin[$i][3] * [decimal]$pairCoin[$i][4];
             $_indNewProfit[$i]         = CalculatePercent -oAmount $pairCoin[$i][2] -nAmount $_indBaseCoinCurrentAmount -dRound 2;
 
-            write-host -ForegroundColor Cyan -BackgroundColor Black "===[1"($pairCoin[$i][1])"="([decimal]$pairCoin[$i][4])"$baseCoin =>"($pairCoin[$i][5])"$fiatSymbol]===";
-            write-host "Original amount: $($pairCoin[$i][2]) [$baseCoin]";
-            write-host -NoNewline -ForegroundColor Yellow -BackgroundColor Black "Current amount:  $_indBaseCoinCurrentAmount [$baseCoin]`nReceived amount: $($pairCoin[$i][3]) [$($pairCoin[$i][1])]`n";
+            #prints the 'From' coin ticker and the 'To' coin ticker section
+            write-host -ForegroundColor Yellow -NoNewline "| $($baseCoin.PadRight(13, ' '))| $($pairCoin[$i][1].PadRight(11, ' '))|";
+
+            #prints the 'Profit' section
             #if the individual profit is greater than 0 will print the % in green otherwise in red
             if ($_indNewProfit[$i] -ge 0) {
-                write-host -NoNewline -ForegroundColor Green -BackgroundColor Black ("Profit:          $([math]::abs($_indNewProfit[$i]))%↑");
+                write-host -NoNewline -ForegroundColor Green -BackgroundColor Black ((' ' + [math]::abs($_indNewProfit[$i]) + '%').PadRight(16, ' ') + '↑');
             } else {
-                write-host -NoNewline -ForegroundColor Red   -BackgroundColor Black ("Profit:          $([math]::abs($_indNewProfit[$i]))%↓");
+                write-host -NoNewline -ForegroundColor Red -BackgroundColor Black ((' ' + [math]::abs($_indNewProfit[$i]) + '%').PadRight(16, ' ') + '↓');
             }
 
+            #prints a section separator between the 'Profit' and 'PDS' section
+            write-host -NoNewline -ForegroundColor Yellow '|';
+
+            #prints the 'PDS' section
             if ($profitChangeActive -eq $true) {
-                #calculates the profit change from the last time for the swapped coin (INDIVIDUAL PROFIT)
+                #calculates the profit change from the last time
                 #avoids dividing by 0
                 if ([decimal]$profitChange[$i + 3] -ne 0) {
                     $_profitChange = CalculatePercent -oAmount $([decimal]$profitChange[$i + 3]) -nAmount $_indNewProfit[$i] -dRound 2;
@@ -273,11 +293,34 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
 
                 #if the profit change is greater than 0 will print the % in green otherwise in red
                 if ($_indNewProfit[$i] -ge [decimal]$profitChange[$i + 3]) {
-                    write-host -ForegroundColor Green -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↑)`n";
+                    write-host -NoNewline -ForegroundColor Green -BackgroundColor Black ((' ' + [math]::abs($_profitChange) + '%').PadRight(15, ' ') + '↑');
                 } else {
-                    write-host -ForegroundColor Red   -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↓)`n";
+                    write-host -NoNewline -ForegroundColor Red   -BackgroundColor Black ((' ' + [math]::abs($_profitChange) + '%').PadRight(15, ' ') + '↓');
                 }
-            } else { write-host "`n"; } 
+            } else { 
+                write-host -NoNewline -ForegroundColor Red -BackgroundColor Black ("      -//-      ")
+            } 
+
+            #prints the 'Details' section
+
+            #prints the conversion infos
+            write-host -NoNewline -ForegroundColor Yellow ((("| 1 " + $pairCoin[$i][1] + ' = ' + ([decimal]$pairCoin[$i][4]) + ' ' + $baseCoin + " => " + ($pairCoin[$i][5]) + $fiatSymbol).PadRight(47, ' ')) + "|`n|");
+            #prints the 'Original Amount'
+            write-host -NoNewline -ForegroundColor Yellow (("| Original Amount:  " + $pairCoin[$i][2] + ' ' + $baseCoin).PadLeft(66 + $baseCoin.Length + 17 + $pairCoin[$i][2].Length, ' ').PadRight(109, ' ') + "|`n|");
+            #prints the 'Current Amount' highlighted
+            write-host -NoNewline -ForegroundColor Yellow ('').PadRight(62, ' ');
+            if ($_indBaseCoinCurrentAmount -ge $pairCoin[$i][2]) {
+                write-host -NoNewline -ForegroundColor Green -BackgroundColor Black (("| Current Amount:   " + $_indBaseCoinCurrentAmount + ' ' + $baseCoin).PadRight(47, ' ') + "|`n");
+            } else {
+                write-host -NoNewline -ForegroundColor Red -BackgroundColor Black (("| Current Amount:   " + $_indBaseCoinCurrentAmount + ' ' + $baseCoin).PadRight(47, ' ') + "|`n");
+            }
+            #prints the 'Received Amount'
+            write-host -NoNewline -ForegroundColor Yellow ('|').PadRight(63, ' ');
+            write-host -NoNewline -ForegroundColor White -BackgroundColor Black (("| Received Amount:  " + $pairCoin[$i][3] + ' ' + $pairCoin[$i][1]).PadRight(47, ' ') + "|`n");
+
+            #prints a separator between the coins
+            write-host -NoNewline -ForegroundColor Yellow ((('|').PadRight(110, '-')) + "|`n");
+
         }
 
         #updates the trace file with the current % profit to make a comparasion the next time
