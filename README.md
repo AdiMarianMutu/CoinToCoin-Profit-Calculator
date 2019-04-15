@@ -18,7 +18,7 @@ You can get a list with all the exchanges and respective coin pair [here](https:
 
 ## Interface
 
-![Alt Text](https://i.imgur.com/JePE0mz.png)
+![Alt Text](https://i.imgur.com/KDxEv9p.png)
 
 ### {Overall Informations}
 
