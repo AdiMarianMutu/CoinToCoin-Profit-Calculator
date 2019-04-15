@@ -10,6 +10,7 @@ The main usecase for this script is when you swapped a coin (example: DGB - Digi
 #Add-Type -AssemblyName System.Windows.Forms;
 
 
+clear-host;
 write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v1.1`n`n";
 [console]::WindowWidth=100; [console]::WindowHeight=35;
 
@@ -32,19 +33,12 @@ function CalculatePercent {
 function RefreshExitLoop {
     # If the 'R' is pressed the script will restart
     write-host -NoNewline -ForegroundColor Yellow "`n`nPress 'R' to refresh or just press 'E' to exit";
-    while($true) {
-        if ($Host.UI.RawUI.ReadKey().Character -eq 'E') { break; } 
 
-        #if ([Windows.Forms.UserControl]::MouseButtons -match "Right") {
-        elseif ($Host.UI.RawUI.ReadKey().Character -eq 'R') {
-            Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
-
-            break;
-        }
-
-        # Used to avoid too much CPU consuming
-        Start-Sleep -Milliseconds 1;
+    if ($Host.UI.RawUI.ReadKey().Character -eq 'R') {
+        Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
     }
+
+    Stop-Process -Id $PID;
 }
 
 # Default value for the "main" file
@@ -165,9 +159,12 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         ((New-Object System.Net.WebClient).downloadString("https://min-api.cryptocompare.com/data/pricemulti?fsyms=$baseCoin,$uniqueStringAllCoins&tsyms=$baseCoin,$fiatSymbol&e=$exchange&api_key=$apiKey") | ConvertFrom-Json) | ForEach-Object {
             #if the response contains an error message will print it
             if ($_.psobject.properties.value[0] -eq "Error") {
-                read-host "EXCHANGE ERROR: `n`n$($_.psobject.properties.value[1])`n`nPress 'ENTER' to exit";
+                clear-host;
 
-                Stop-Process -Id $PID;
+                write-host -ForegroundColor Yellow -BackgroundColor Black "Exchange error: `n`n";
+                write-host -ForegroundColor Red -BackgroundColor Black "$($_.psobject.properties.value[1])`n`n";
+
+                RefreshExitLoop;
             }
 
             for ($i = 0; $i -lt $pairCoin.Count + 1; $i++) {
@@ -258,8 +255,8 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
             $_indNewProfit[$i]         = CalculatePercent -oAmount $pairCoin[$i][2] -nAmount $_indBaseCoinCurrentAmount -dRound 2;
 
             write-host -ForegroundColor Cyan -BackgroundColor Black "===[1"($pairCoin[$i][1])"="([decimal]$pairCoin[$i][4])"$baseCoin =>"($pairCoin[$i][5])"$fiatSymbol]===";
-            write-host "Original amount: $($pairCoin[$i][2]) [$baseCoin]`nCurrent amount:  $_indBaseCoinCurrentAmount [$baseCoin]";
-            write-host -NoNewline -ForegroundColor Black -BackgroundColor Yellow "Received amount: $($pairCoin[$i][3]) [$($pairCoin[$i][1])]`n";
+            write-host "Original amount: $($pairCoin[$i][2]) [$baseCoin]";
+            write-host -NoNewline -ForegroundColor Yellow -BackgroundColor Black "Current amount:  $_indBaseCoinCurrentAmount [$baseCoin]`nReceived amount: $($pairCoin[$i][3]) [$($pairCoin[$i][1])]`n";
             #if the individual profit is greater than 0 will print the % in green otherwise in red
             if ($_indNewProfit[$i] -ge 0) {
                 write-host -NoNewline -ForegroundColor Green -BackgroundColor Black ("Profit:          $([math]::abs($_indNewProfit[$i]))%↑");
@@ -293,7 +290,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         Set-Content -Path "$($filePath)profit.tr" -Value $_traceFileValue;
 
 
-        RefreshExitLoop;
+        RefreshExitLoop -autoRefresh $true;
     } catch {
         Clear-Host;
         
