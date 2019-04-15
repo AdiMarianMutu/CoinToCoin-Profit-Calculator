@@ -10,13 +10,13 @@ The main usecase for this script is when you swapped a coin (example: DGB - Digi
 #Add-Type -AssemblyName System.Windows.Forms;
 
 
-write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v1.0.3`n`n";
+write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v1.1`n`n";
 [console]::WindowWidth=100; [console]::WindowHeight=35;
 
-# Functions
-function CalculatePercent {
-    # Calculates the % value betweens the given numbers
+# FUNCTIONS #
 
+# Calculates the % value betweens the given numbers
+function CalculatePercent {
     #oAmount = Original Amount
     #nAmount = New Amount
     #dRound  = Decimal Round
@@ -26,6 +26,25 @@ function CalculatePercent {
     param([decimal]$oAmount, [decimal]$nAmount, [int]$dRound);
 
     return [decimal][math]::Round((($nAmount - $oAmount) / $oAmount) * 100, $dRound);
+}
+
+# Used for the 'Refresh or exit' question
+function RefreshExitLoop {
+    # If the 'R' is pressed the script will restart
+    write-host -NoNewline -ForegroundColor Yellow "`n`nPress 'R' to refresh or just press 'E' to exit";
+    while($true) {
+        if ($Host.UI.RawUI.ReadKey().Character -eq 'E') { break; } 
+
+        #if ([Windows.Forms.UserControl]::MouseButtons -match "Right") {
+        elseif ($Host.UI.RawUI.ReadKey().Character -eq 'R') {
+            Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
+
+            break;
+        }
+
+        # Used to avoid too much CPU consuming
+        Start-Sleep -Milliseconds 1;
+    }
 }
 
 # Default value for the "main" file
@@ -62,83 +81,85 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
 
     Set-Content -Path "$($filePath)main.txt" -Value $fileDefaultValue;
 
-    Read-Host "'main.txt' file not found, creating a new one...`nEdit the file and re-open the script`n`nPress enter to exit";
+    write-host -ForegroundColor Red -BackgroundColor Black "'main.txt' file not found, creating a new one...`nEdit the file and re-open the script`n";
+
+    RefreshExitLoop
 } else {
-    $apiKey;
-    $exchange;
-    $baseCoin;
-    $fiatSymbol;
-    $baseCoinFiatValue      = 0;
-    $pairCoin               = New-Object Collections.Generic.List[string[]];
-    $baseCoinNewAmount      = 0;
-    $baseCoinOriginalAmount = 0;
-    $profitChange           = New-Object Collections.Generic.List[string];
-    $profitChangeActive     = $false;
-
-
-    #reads the 'trace' file to calculate the profit changes from the las time
-    if ((Test-Path -Path "$($filePath)profit.tr")) {
-        $profitChangeActive = $true;
-
-        $fileArray = Get-Content -Path "$($filePath)profit.tr";
-        foreach ($_s In $fileArray) {
-            $profitChange.Add($_s);
-        }
-
-        #calculates the time passed from the last profit verification
-        $profitChange[0] = [string](new-timespan –start $([datetime]$profitChange[0]) –end $([datetime]$(Get-Date -format U)));
-        $profitChange[0] = $("{0} day(s) {1}h:{2}m:{3}s" -f $([timespan]$profitChange[0]).Days, $([timespan]$profitChange[0]).Hours, $([timespan]$profitChange[0]).Minutes, $([timespan]$profitChange[0]).Seconds);
-    }
-    
-    #reads the 'main.txt' file
-    [string[]]$fileArray = Get-Content -Path "$($filePath)main.txt";
-    foreach ($_s In $fileArray) {
-        #lines which starts with '#' are comments
-
-        if (!($_s.StartsWith('#') -or [string]::IsNullOrEmpty($_s))) {
-            if ($_s.StartsWith("apiKey")) {
-                $apiKey = $_s.Substring($_s.IndexOf('=') + 1);
-            } elseif ($_s.StartsWith("exchange")) {
-                $exchange = $_s.Substring($_s.IndexOf('=') + 1);
-            }
-             elseif ($_s.StartsWith("coin")) {
-                #retrieves the base coin ticker
-                $baseCoin = $_s.Substring($_s.IndexOf('=') + 1);
-            } elseif ($_s.StartsWith("fiat")) {
-                #retrieves the fiat currency
-                if ($_s.Substring($_s.IndexOf('=') + 1).Length -gt 0) {
-                    $fiatSymbol = $_s.Substring($_s.IndexOf('=') + 1);
-                } else { $fiatSymbol = "GBP"; }
-            } else {
-                #retrieves the investment coin ticker
-                $_coinFrom       = $_s.Substring(1, $_s.IndexOf('/') - 1);
-                #retrieves the recevied coin ticker
-                $_coinTo         = $_s.Substring($_s.IndexOf('/') + 1, ($_s.IndexOf(']') - $_s.IndexOf('/')) - 1);
-                #retrieves the amount of the investment in 'baseCoin'
-                $_coinInvestment = $_s.Substring($_s.IndexOf(']') + 1, ($_s.IndexOf('>') - $_s.IndexOf(']')) - 1);
-                #retrieves the amount in 'baseCoin' recevied from the swap
-                $_coinAmountSwap = $_s.Substring($_s.IndexOf('>') + 1);
-
-                $pairCoin.Add(@($_coinFrom, $_coinTo, $_coinInvestment, $_coinAmountSwap, 0, 0, 0));
-                #the 4th index is the current value of the swapped coin in 'baseCoin'
-                #the 5th index is the current value of the swapped coin in fiat
-                #the 6th index is the profit change
-            }
-        }
-    }
-
-    #parses the 'pairCoin' array to create a valid parameter for the CryptoCompare API
-    $uniqueStringAllCoins;
-    for ($i = 1; $i -le $pairCoin.Count; $i++) {
-        $uniqueStringAllCoins += $pairCoin[$i - 1][1];
-
-        if ($i -lt $pairCoin.Count -and $i -ne $pairCoin.Count) {
-            $uniqueStringAllCoins += ',';
-        }
-    }
-
-
     try {
+        $apiKey;
+        $exchange;
+        $baseCoin;
+        $fiatSymbol;
+        $baseCoinFiatValue      = 0;
+        $pairCoin               = New-Object Collections.Generic.List[string[]];
+        $baseCoinNewAmount      = 0;
+        $baseCoinOriginalAmount = 0;
+        $profitChange           = New-Object Collections.Generic.List[string];
+        $profitChangeActive     = $false;
+
+
+        #reads the 'trace' file to calculate the profit changes from the las time
+        if ((Test-Path -Path "$($filePath)profit.tr")) {
+            $profitChangeActive = $true;
+
+            $fileArray = Get-Content -Path "$($filePath)profit.tr";
+            foreach ($_s In $fileArray) {
+                $profitChange.Add($_s);
+            }
+
+            #calculates the time passed from the last profit verification
+            $profitChange[0] = [string](new-timespan –start $([datetime]$profitChange[0]) –end $([datetime]$(Get-Date -format U)));
+            $profitChange[0] = $("{0} day(s) {1}h:{2}m:{3}s" -f $([timespan]$profitChange[0]).Days, $([timespan]$profitChange[0]).Hours, $([timespan]$profitChange[0]).Minutes, $([timespan]$profitChange[0]).Seconds);
+        }
+    
+        #reads the 'main.txt' file
+        [string[]]$fileArray = Get-Content -Path "$($filePath)main.txt";
+        foreach ($_s In $fileArray) {
+            #lines which starts with '#' are comments
+
+            if (!($_s.StartsWith('#') -or [string]::IsNullOrEmpty($_s))) {
+                if ($_s.StartsWith("apiKey")) {
+                    $apiKey = $_s.Substring($_s.IndexOf('=') + 1);
+                } elseif ($_s.StartsWith("exchange")) {
+                    $exchange = $_s.Substring($_s.IndexOf('=') + 1);
+                } elseif ($_s.StartsWith("coin")) {
+                    #retrieves the base coin ticker
+                    $baseCoin = $_s.Substring($_s.IndexOf('=') + 1);
+                } elseif ($_s.StartsWith("fiat")) {
+                    #retrieves the fiat currency
+                    if ($_s.Substring($_s.IndexOf('=') + 1).Length -gt 0) {
+                        $fiatSymbol = $_s.Substring($_s.IndexOf('=') + 1);
+                    } else { $fiatSymbol = "GBP"; }
+                } else {
+                    #retrieves the investment coin ticker
+                    $_coinFrom       = $_s.Substring(1, $_s.IndexOf('/') - 1);
+                    #retrieves the recevied coin ticker
+                    $_coinTo         = $_s.Substring($_s.IndexOf('/') + 1, ($_s.IndexOf(']') - $_s.IndexOf('/')) - 1);
+                    #retrieves the amount of the investment in 'baseCoin'
+                    $_coinInvestment = $_s.Substring($_s.IndexOf(']') + 1, ($_s.IndexOf('>') - $_s.IndexOf(']')) - 1);
+                    #retrieves the amount in 'baseCoin' recevied from the swap
+                    $_coinAmountSwap = $_s.Substring($_s.IndexOf('>') + 1);
+
+                    $pairCoin.Add(@($_coinFrom, $_coinTo, $_coinInvestment, $_coinAmountSwap, 0, 0, 0));
+                    #the 4th index is the current value of the swapped coin in 'baseCoin'
+                    #the 5th index is the current value of the swapped coin in fiat
+                    #the 6th index is the profit change
+                }
+            }
+        }
+
+        #parses the 'pairCoin' array to create a valid parameter for the CryptoCompare API
+        $uniqueStringAllCoins;
+        for ($i = 1; $i -le $pairCoin.Count; $i++) {
+            $uniqueStringAllCoins += $pairCoin[$i - 1][1];
+
+            if ($i -lt $pairCoin.Count -and $i -ne $pairCoin.Count) {
+                $uniqueStringAllCoins += ',';
+            }
+        }
+
+
+
         #performs the GET call to CryptoCompare
         #parses the JSON response
         ((New-Object System.Net.WebClient).downloadString("https://min-api.cryptocompare.com/data/pricemulti?fsyms=$baseCoin,$uniqueStringAllCoins&tsyms=$baseCoin,$fiatSymbol&e=$exchange&api_key=$apiKey") | ConvertFrom-Json) | ForEach-Object {
@@ -272,28 +293,21 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         Set-Content -Path "$($filePath)profit.tr" -Value $_traceFileValue;
 
 
-        # WAITING LOOP
-
-        # If the 'R' is pressed the script will restart
-        write-host -NoNewline -ForegroundColor Yellow "`n`nPress 'R' to refresh or just press 'E' to exit";
-        while($true) {
-            if ($Host.UI.RawUI.ReadKey().Character -eq 'E') { break; } 
-
-            #if ([Windows.Forms.UserControl]::MouseButtons -match "Right") {
-            elseif ($Host.UI.RawUI.ReadKey().Character -eq 'R') {
-                Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
-
-                break;
-            }
-
-            # Used to avoid too much CPU consuming
-            Start-Sleep -Milliseconds 1;
-        }
+        RefreshExitLoop;
     } catch {
         Clear-Host;
-        write-host -ForegroundColor Red -BackgroundColor Black "Something bad happened...`n`n`nError: $($_.Exception)`n$($_.ScriptStackTrace)`n`n";
-        write-host -ForegroundColor Yellow -BackgroundColor Black "Please send an e-mail to 'mutu.adi.marian@gmail.com' with the highlighted error above`n`nPress enter to exit...";
-        read-host;
+        
+        write-host -ForegroundColor Yellow -BackgroundColor Black "Something bad happened...`n`n";
+
+        # This will happen when there's no internet connection
+        if (!(Get-NetRoute | ? DestinationPrefix -eq '0.0.0.0/0' | Get-NetIPInterface | Where ConnectionState -eq 'Connected')) {
+            write-host -ForegroundColor Red -BackgroundColor Black "Are you connected to the internet? :/`n`n";
+        } else {
+            write-host -ForegroundColor Red -BackgroundColor Black "Error: $($_.Exception)`n$($_.ScriptStackTrace)`n`n";
+            write-host -ForegroundColor Yellow -BackgroundColor Black "Please send an e-mail to 'mutu.adi.marian@gmail.com' with the highlighted error above`n`n";
+        }
+
+        RefreshExitLoop;
     }
 }
 
