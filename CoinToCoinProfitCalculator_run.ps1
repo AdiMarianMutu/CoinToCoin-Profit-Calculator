@@ -11,10 +11,44 @@ The main usecase for this script is when you swapped a coin (example: DGB - Digi
 
 
 clear-host;
-write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v2.0`n`n";
+write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v2.1`n`n";
 [console]::WindowWidth=111; [console]::WindowHeight=37;
 
 # FUNCTIONS #
+
+# Returns into an array the informations about the coin pair using CryptoCompare's API
+function GetCoinPairInfo {
+    #fromTicker = Coin symbol swapped from
+    #toTicker   = Coin symbol swapped to
+    #fiatTicker = Fiat symbol to convert the coins
+    #ex         = Exchange
+    #apiKey     = CryptoCompare's API key (not mandatory)
+    param([string]$fromTicker, [string]$toTicker, [string]$fiatTicker, [string]$ex = "CCCAGG", [string]$apiKey);
+
+    #the array which will contain the response from CryptoCompare's API
+    $dataReturn = @(0, 0);
+
+    #performs the GET call
+    ((New-Object System.Net.WebClient).downloadString("https://min-api.cryptocompare.com/data/pricemulti?fsyms=$fromTicker&tsyms=$toTicker,$fiatTicker&e=$ex&api_key=$apiKey") | ConvertFrom-Json) | ForEach-Object {
+        if ($_.psobject.properties.value[0] -eq "Error") {
+            clear-host;
+
+            write-host -ForegroundColor Yellow -BackgroundColor Black "Exchange error: `n`n";
+            write-host -ForegroundColor Red -BackgroundColor Black "$($_.psobject.properties.value[1])`n`n";
+
+            RefreshExitLoop;
+        }
+
+
+        foreach ($_value in $_.psobject.properties.value[0]) {
+            $dataReturn[0] = $_value.psobject.properties.value[0];
+            $dataReturn[1] = $_value.psobject.properties.value[1];
+        }
+    }
+
+    #returns an array which will contain into the first index the value of 1 'fromTicker' in 'toTicker' and into the 2nd index will contain the value of 1 'fromTicker' in 'fiatTicker'
+    return $dataReturn;
+}
 
 # Calculates the % value betweens the given numbers
 function CalculatePercent {
@@ -26,7 +60,11 @@ function CalculatePercent {
 
     param([decimal]$oAmount, [decimal]$nAmount, [int]$dRound);
 
-    return [decimal][math]::Round((($nAmount - $oAmount) / $oAmount) * 100, $dRound);
+    if ($nAmount -eq 0 -or $oAmount -eq 0) {
+        return [decimal]0;
+    } else {
+        return [decimal][math]::Round((($nAmount - $oAmount) / $oAmount) * 100, $dRound);
+    }
 }
 
 # Used for the 'Refresh or exit' question
@@ -90,6 +128,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         $apiKey;
         $exchange;
         $baseCoin;
+        $fiatValueTotal         = 0;
         $fiatSymbol;
         $baseCoinFiatValue      = 0;
         $pairCoin               = New-Object Collections.Generic.List[string[]];
@@ -149,67 +188,49 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
             }
         }
 
-        #parses the 'pairCoin' array to create a valid parameter for the CryptoCompare API
-        $uniqueStringAllCoins;
-        for ($i = 1; $i -le $pairCoin.Count; $i++) {
-            $uniqueStringAllCoins += $pairCoin[$i - 1][1];
 
-            if ($i -lt $pairCoin.Count -and $i -ne $pairCoin.Count) {
-                $uniqueStringAllCoins += ',';
+        # ======================= #
+        #         GET CALL        #
+        # ======================= #
+
+        #retrieves the current fiat value for the 'baseCoin'
+        $_coinPairInfo     = GetCoinPairInfo -fromTicker $baseCoin -toTicker $baseCoin -fiatTicker $fiatSymbol;
+        $baseCoinFiatValue = $_coinPairInfo[1];
+
+        for ($i = 0; $i -lt $pairCoin.Count; $i++) {
+            #retrieves the current fiat and 'baseCoin' value for the swapped coin
+            $_coinPairInfo = GetCoinPairInfo -fromTicker $pairCoin[$i][1] -toTicker $pairCoin[$i][0] -fiatTicker $fiatSymbol;
+
+            #baseCoin
+            $pairCoin[$i][4] = $_coinPairInfo[0];
+            #fiat
+            $pairCoin[$i][5] = $_coinPairInfo[1];
+
+
+            #calculate the total 'fiatValue' from all the swaps
+            $fiatValueTotal += [decimal][math]::Round([decimal]$pairCoin[$i][3] * [decimal](GetCoinPairInfo -fromTicker $pairCoin[$i][1] -toTicker $baseCoin -fiatTicker $fiatSymbol)[1], 2);
+
+            #only increments the original amount with the swaps comed from the same 'baseCoin'
+            if ($pairCoin[$i][0] -eq $baseCoin) {
+                $baseCoinOriginalAmount += [decimal]$pairCoin[$i][2];
             }
         }
 
+        # ======================= #
+        #     OVERALL PROFIT      #
+        # ======================= #
 
-
-        #performs the GET call to CryptoCompare
-        #parses the JSON response
-        ((New-Object System.Net.WebClient).downloadString("https://min-api.cryptocompare.com/data/pricemulti?fsyms=$baseCoin,$uniqueStringAllCoins&tsyms=$baseCoin,$fiatSymbol&e=$exchange&api_key=$apiKey") | ConvertFrom-Json) | ForEach-Object {
-            #if the response contains an error message will print it
-            if ($_.psobject.properties.value[0] -eq "Error") {
-                clear-host;
-
-                write-host -ForegroundColor Yellow -BackgroundColor Black "Exchange error: `n`n";
-                write-host -ForegroundColor Red -BackgroundColor Black "$($_.psobject.properties.value[1])`n`n";
-
-                RefreshExitLoop;
-            }
-
-            for ($i = 0; $i -lt $pairCoin.Count + 1; $i++) {
-                #retrieves the current fiat value for the 'baseCoin'
-                if ($_.psobject.properties.name[$i] -eq $baseCoin) {
-                    foreach ($_value in $_.psobject.properties.value[0]) {
-                        $baseCoinFiatValue = $_value.psobject.properties.value[1];
-                    }
-                }
-
-                #retrieves the current fiat and 'baseCoin' value for the swapped coin
-                elseif ($_.psobject.properties.name[$i] -eq $pairCoin[$i - 1][1]) {
-                    foreach ($_value in $_.psobject.properties.value[$i]) {
-                        #baseCoin
-                        $pairCoin[$i - 1][4] = $_value.psobject.properties.value[0];
-                        #fiat
-                        $pairCoin[$i - 1][5] = $_value.psobject.properties.value[1];
-
-                        #retrieves the new amount of the 'baseCoin'
-                        $baseCoinNewAmount      += [decimal]$pairCoin[$i - 1][3] * [decimal]$pairCoin[$i - 1][4];
-                        #retrieves also the original amount of the base coin
-                        $baseCoinOriginalAmount += [decimal]$pairCoin[$i - 1][2];
-                    }
-                }
-            }
-        }
-
-        #draws the 'Overall Profit' informations
+        #calculates the new amont of 'baseCoin' gained from all the swaps
+        $baseCoinNewAmount = [math]::Round($fiatValueTotal / $baseCoinFiatValue, 4);
         #converts the total profit in fiat for the 'baseCoin'
-        $fiatValueTotal         = [decimal][math]::Round([decimal]($baseCoinNewAmount * $baseCoinFiatValue), 2);
         #calculates the total % profit for the 'baseCoin'
-        $baseCoinProfit         = CalculatePercent -oAmount $baseCoinOriginalAmount -nAmount $baseCoinNewAmount -dRound 2;
+        $baseCoinProfit = CalculatePercent -oAmount $baseCoinOriginalAmount -nAmount $baseCoinNewAmount -dRound 2;
         #calculates the profit change from the last time for the 'baseCoin' fiat value
         if ($profitChangeActive -eq $true) {
             #avoids dividing by 0
-            if ($baseCoinProfit -ne 0 -and [decimal]$profitChange[1] -ne 0) {
+            if ($fiatValueTotal -ne 0 -and [decimal]$profitChange[1] -ne 0) {
                 $_fiatValueProfitChange = CalculatePercent -oAmount $([decimal]$profitChange[1]) -nAmount $fiatValueTotal -dRound 2;
-            } else { $_fiatValueProfitChange = 100; }
+            } else { $_fiatValueProfitChange = 0; }
 
             write-host -ForegroundColor Yellow "{Overall informations | Profit Difference Since (PDS) => $($profitChange[0])}"
         } else {
@@ -270,7 +291,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
             $_indNewProfit[$i]         = CalculatePercent -oAmount $pairCoin[$i][2] -nAmount $_indBaseCoinCurrentAmount -dRound 2;
 
             #prints the 'From' coin ticker and the 'To' coin ticker section
-            write-host -ForegroundColor Yellow -NoNewline "| $($baseCoin.PadRight(13, ' '))| $($pairCoin[$i][1].PadRight(11, ' '))|";
+            write-host -ForegroundColor Yellow -NoNewline "| $($pairCoin[$i][0].PadRight(13, ' '))| $($pairCoin[$i][1].PadRight(11, ' '))|";
 
             #prints the 'Profit' section
             #if the individual profit is greater than 0 will print the % in green otherwise in red
@@ -304,15 +325,15 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
             #prints the 'Details' section
 
             #prints the conversion infos
-            write-host -NoNewline -ForegroundColor Yellow ((("| 1 " + $pairCoin[$i][1] + ' = ' + ([decimal]$pairCoin[$i][4]) + ' ' + $baseCoin + " => " + ($pairCoin[$i][5]) + $fiatSymbol).PadRight(47, ' ')) + "|`n|");
+            write-host -NoNewline -ForegroundColor Yellow ((("| 1 " + $pairCoin[$i][1] + ' = ' + ([decimal]$pairCoin[$i][4]) + ' ' + $pairCoin[$i][0] + " => " + ($pairCoin[$i][5]) + $fiatSymbol).PadRight(47, ' ')) + "|`n|");
             #prints the 'Original Amount'
-            write-host -NoNewline -ForegroundColor Yellow (("| Original Amount:  " + $pairCoin[$i][2] + ' ' + $baseCoin).PadLeft(66 + $baseCoin.Length + 17 + $pairCoin[$i][2].Length, ' ').PadRight(109, ' ') + "|`n|");
+            write-host -NoNewline -ForegroundColor Yellow (("| Original Amount:  " + $pairCoin[$i][2] + ' ' + $pairCoin[$i][0]).PadLeft(66 + $pairCoin[$i][0].Length + 17 + $pairCoin[$i][2].Length, ' ').PadRight(109, ' ') + "|`n|");
             #prints the 'Current Amount' highlighted
             write-host -NoNewline -ForegroundColor Yellow ('').PadRight(62, ' ');
             if ($_indBaseCoinCurrentAmount -ge $pairCoin[$i][2]) {
-                write-host -NoNewline -ForegroundColor Green -BackgroundColor Black (("| Current Amount:   " + $_indBaseCoinCurrentAmount + ' ' + $baseCoin).PadRight(47, ' ') + "|`n");
+                write-host -NoNewline -ForegroundColor Green -BackgroundColor Black (("| Current Amount:   " + $_indBaseCoinCurrentAmount + ' ' + $pairCoin[$i][0]).PadRight(47, ' ') + "|`n");
             } else {
-                write-host -NoNewline -ForegroundColor Red -BackgroundColor Black (("| Current Amount:   " + $_indBaseCoinCurrentAmount + ' ' + $baseCoin).PadRight(47, ' ') + "|`n");
+                write-host -NoNewline -ForegroundColor Red -BackgroundColor Black (("| Current Amount:   " + $_indBaseCoinCurrentAmount + ' ' + $pairCoin[$i][0]).PadRight(47, ' ') + "|`n");
             }
             #prints the 'Received Amount'
             write-host -NoNewline -ForegroundColor Yellow ('|').PadRight(63, ' ');
@@ -322,6 +343,10 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
             write-host -NoNewline -ForegroundColor Yellow ((('|').PadRight(110, '-')) + "|`n");
 
         }
+
+        # ======================= #
+        #       TRACE FILE        #
+        # ======================= #
 
         #updates the trace file with the current % profit to make a comparasion the next time
         $_traceFileValue  = "$(Get-Date -Format U)`n"; #timestamp from last verification
