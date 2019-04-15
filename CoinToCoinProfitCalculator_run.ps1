@@ -10,7 +10,7 @@ The main usecase for this script is when you swapped a coin (example: DGB - Digi
 #Add-Type -AssemblyName System.Windows.Forms;
 
 
-write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v1.0.2`n`n`n";
+write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v1.0.3`n`n";
 [console]::WindowWidth=100; [console]::WindowHeight=35;
 
 # Functions
@@ -110,13 +110,13 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
                     $fiatSymbol = $_s.Substring($_s.IndexOf('=') + 1);
                 } else { $fiatSymbol = "GBP"; }
             } else {
-                #retrieves the investment coin
+                #retrieves the investment coin ticker
                 $_coinFrom       = $_s.Substring(1, $_s.IndexOf('/') - 1);
-                #retrieves the recevied coin
+                #retrieves the recevied coin ticker
                 $_coinTo         = $_s.Substring($_s.IndexOf('/') + 1, ($_s.IndexOf(']') - $_s.IndexOf('/')) - 1);
-                #retrieves the amount of the investment coin
+                #retrieves the amount of the investment in 'baseCoin'
                 $_coinInvestment = $_s.Substring($_s.IndexOf(']') + 1, ($_s.IndexOf('>') - $_s.IndexOf(']')) - 1);
-                #retrieves the amount recevied from the swap
+                #retrieves the amount in 'baseCoin' recevied from the swap
                 $_coinAmountSwap = $_s.Substring($_s.IndexOf('>') + 1);
 
                 $pairCoin.Add(@($_coinFrom, $_coinTo, $_coinInvestment, $_coinAmountSwap, 0, 0, 0));
@@ -192,7 +192,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         }
 
         
-        write-host -NoNewline "[1 $($baseCoin)]:        $baseCoinFiatValue $fiatSymbol`nOriginal value: $baseCoinOriginalAmount $baseCoin`nCurrent value:  $baseCoinNewAmount $baseCoin => $fiatValueTotal $fiatSymbol ";
+        write-host -NoNewline "[1 $($baseCoin)]:        $baseCoinFiatValue [$fiatSymbol]`nOriginal value: $baseCoinOriginalAmount [$baseCoin]`nCurrent value:  $baseCoinNewAmount [$baseCoin] => $fiatValueTotal [$fiatSymbol] ";
         if ($fiatValueTotal -ge [decimal]$profitChange[1]) {
             if ($profitChangeActive -eq $true) {
                 write-host -NoNewline -ForegroundColor Green -BackgroundColor Black "PDS: $([math]::abs($_fiatValueProfitChange))%↑";
@@ -234,10 +234,11 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
 
         for ($i = 0; $i -lt $pairCoin.Count; $i++) {
             $_indBaseCoinCurrentAmount = [decimal]$pairCoin[$i][3] * [decimal]$pairCoin[$i][4];
-            $_indNewProfit[$i]            = CalculatePercent -oAmount $pairCoin[$i][2] -nAmount $_indBaseCoinCurrentAmount -dRound 2;
+            $_indNewProfit[$i]         = CalculatePercent -oAmount $pairCoin[$i][2] -nAmount $_indBaseCoinCurrentAmount -dRound 2;
 
             write-host -ForegroundColor Cyan -BackgroundColor Black "===[1"($pairCoin[$i][1])"="([decimal]$pairCoin[$i][4])"$baseCoin =>"($pairCoin[$i][5])"$fiatSymbol]===";
-            write-host "Original amount: $($pairCoin[$i][2])$($pairCoin[$i][0])`nCurrent amount:  $_indBaseCoinCurrentAmount $baseCoin";
+            write-host "Original amount: $($pairCoin[$i][2]) [$baseCoin]`nCurrent amount:  $_indBaseCoinCurrentAmount [$baseCoin]";
+            write-host -NoNewline -ForegroundColor Black -BackgroundColor Yellow "Received amount: $($pairCoin[$i][3]) [$($pairCoin[$i][1])]`n";
             #if the individual profit is greater than 0 will print the % in green otherwise in red
             if ($_indNewProfit[$i] -ge 0) {
                 write-host -NoNewline -ForegroundColor Green -BackgroundColor Black ("Profit:          $([math]::abs($_indNewProfit[$i]))%↑");
@@ -274,7 +275,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         # WAITING LOOP
 
         # If the 'R' is pressed the script will restart
-        write-host -NoNewline -ForegroundColor Yellow "`n`n`nPress 'R' to refresh or just press 'E' to exit";
+        write-host -NoNewline -ForegroundColor Yellow "`n`nPress 'R' to refresh or just press 'E' to exit";
         while($true) {
             if ($Host.UI.RawUI.ReadKey().Character -eq 'E') { break; } 
 
