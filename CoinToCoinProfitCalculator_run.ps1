@@ -11,7 +11,7 @@ The main usecase for this script is when you swapped a coin (example: DGB - Digi
 
 
 clear-host;
-write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v2.1`n`n";
+write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v2.1.1`n`n";
 [console]::WindowWidth=111; [console]::WindowHeight=37;
 
 # FUNCTIONS #
@@ -30,7 +30,7 @@ function GetCoinPairInfo {
 
     #performs the GET call
     ((New-Object System.Net.WebClient).downloadString("https://min-api.cryptocompare.com/data/pricemulti?fsyms=$fromTicker&tsyms=$toTicker,$fiatTicker&e=$ex&api_key=$apiKey") | ConvertFrom-Json) | ForEach-Object {
-        if ($_.psobject.properties.value[0] -eq "Error") {
+        if ($_.psobject.properties.value[0] -eq "Error" -and !($_.psobject.properties.value[1] -eq "$ex market does not exist for this coin pair ($toTicker-$fromTicker)")) {
             clear-host;
 
             write-host -ForegroundColor Yellow -BackgroundColor Black "Exchange error: `n`n";
@@ -69,15 +69,36 @@ function CalculatePercent {
 
 # Used for the 'Refresh or exit' question
 function RefreshExitLoop {
-    # If the 'R' is pressed the script will restart
-    write-host -NoNewline -ForegroundColor Yellow "`n`nPress 'R' to refresh or any key to exit";
+    param([int]$autoRefreshSeconds = 0);
+
+    #if the 'R' is pressed the script will restart
+    write-host -NoNewline -ForegroundColor Yellow "`n`nPress 'R' to refresh or any key to exit`n`n";
+
+    #autorefresh function
+    $_stopWatch;
+    if ($autoRefreshSeconds -gt 0) {
+        $_stopWatch = [System.Diagnostics.Stopwatch]::StartNew();
+        $_stopWatch.Start();
+    }
 
     while ($true) {
-        if ($Host.UI.RawUI.ReadKey().Character -eq 'R') {
-            Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
+        if ($Host.UI.RawUI.KeyAvailable) {
+            if ($Host.UI.RawUI.ReadKey().Character -eq 'R') {
+                Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
 
-            break;
-        } else { break; }
+                break;
+            } else { break; }
+        }
+
+        if ($autoRefreshSeconds -gt 0) {
+            write-host -NoNewline -ForegroundColor Yellow ("`r > Autorefresh in $([math]::Round($autoRefreshSeconds - $_stopWatch.Elapsed.TotalSeconds)) seconds...").PadRight([console]::WindowWidth, ' ');
+
+            if ($_stopWatch.Elapsed.TotalSeconds -ge $autoRefreshSeconds) {
+                Start-Process -FilePath "$PSHOME\powershell.exe" -ArgumentList '-NoExit', '-File', """$PSCommandPath""";
+
+                break;
+            }
+        }
 
         start-sleep -Milliseconds 1;
     }
@@ -85,11 +106,13 @@ function RefreshExitLoop {
     Stop-Process -Id $PID;
 }
 
-
 # Default value for the "main" file
 $fileDefaultValue = "# Isn't mandatory to have an API Key to use CryptoCompare's API
 # Anyway, you can get a free one by accessing this link https://www.cryptocompare.com/cryptopian/api-keys
 apiKey=
+
+# Autorefresh rate in seconds (leave 0 to disable)
+autorefreshRate=10
 
 # Select an exchange from where to get the data for the profit calculation
 # You can see a list of all the exchanges available and their coin pair by accessing this link https://min-api.cryptocompare.com/data/v2/all/exchanges (By default is CCCAGG)
@@ -122,10 +145,11 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
 
     write-host -ForegroundColor Red -BackgroundColor Black "'main.txt' file not found, creating a new one...`nEdit the file and re-open the script`n";
 
-    RefreshExitLoop
+    RefreshExitLoop;
 } else {
     try {
         $apiKey;
+        $autoRefreshSec         = 10;
         $exchange;
         $baseCoin;
         $fiatValueTotal         = 0;
@@ -160,6 +184,8 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
             if (!($_s.StartsWith('#') -or [string]::IsNullOrEmpty($_s))) {
                 if ($_s.StartsWith("apiKey")) {
                     $apiKey = $_s.Substring($_s.IndexOf('=') + 1);
+                } elseif ($_s.StartsWith("autorefreshRate")) {
+                    $autoRefreshSec = [int]$_s.Substring($_s.IndexOf('=') + 1);
                 } elseif ($_s.StartsWith("exchange")) {
                     $exchange = $_s.Substring($_s.IndexOf('=') + 1);
                 } elseif ($_s.StartsWith("coin")) {
@@ -194,12 +220,11 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         # ======================= #
 
         #retrieves the current fiat value for the 'baseCoin'
-        $_coinPairInfo     = GetCoinPairInfo -fromTicker $baseCoin -toTicker $baseCoin -fiatTicker $fiatSymbol;
-        $baseCoinFiatValue = $_coinPairInfo[1];
-
+        $baseCoinFiatValue = (GetCoinPairInfo -fromTicker $baseCoin -toTicker $baseCoin -fiatTicker $fiatSymbol -ex $exchange)[1];
+        
         for ($i = 0; $i -lt $pairCoin.Count; $i++) {
             #retrieves the current fiat and 'baseCoin' value for the swapped coin
-            $_coinPairInfo = GetCoinPairInfo -fromTicker $pairCoin[$i][1] -toTicker $pairCoin[$i][0] -fiatTicker $fiatSymbol;
+            $_coinPairInfo = GetCoinPairInfo -fromTicker $pairCoin[$i][1] -toTicker $pairCoin[$i][0] -fiatTicker $fiatSymbol -ex $exchange;
 
             #baseCoin
             $pairCoin[$i][4] = $_coinPairInfo[0];
@@ -208,7 +233,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
 
 
             #calculate the total 'fiatValue' from all the swaps
-            $fiatValueTotal += [decimal][math]::Round([decimal]$pairCoin[$i][3] * [decimal](GetCoinPairInfo -fromTicker $pairCoin[$i][1] -toTicker $baseCoin -fiatTicker $fiatSymbol)[1], 2);
+            $fiatValueTotal += [decimal][math]::Round([decimal]$pairCoin[$i][3] * [decimal](GetCoinPairInfo -fromTicker $pairCoin[$i][1] -toTicker $baseCoin -fiatTicker $fiatSymbol -ex $exchange)[1], 2);
 
             #only increments the original amount with the swaps comed from the same 'baseCoin'
             if ($pairCoin[$i][0] -eq $baseCoin) {
@@ -238,7 +263,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         }
 
         
-        write-host -NoNewline "[1 $($baseCoin)]:        $baseCoinFiatValue [$fiatSymbol]`nOriginal value: $baseCoinOriginalAmount [$baseCoin]`nCurrent value:  $baseCoinNewAmount [$baseCoin] => $fiatValueTotal [$fiatSymbol] ";
+        write-host -NoNewline "[1 $($baseCoin)]:         $baseCoinFiatValue [$fiatSymbol]`nOriginal Amount: $baseCoinOriginalAmount [$baseCoin]`nCurrent Amount:  $baseCoinNewAmount [$baseCoin] => $fiatValueTotal [$fiatSymbol] ";
         if ($fiatValueTotal -ge [decimal]$profitChange[1]) {
             if ($profitChangeActive -eq $true) {
                 write-host -NoNewline -ForegroundColor Green -BackgroundColor Black "PDS: $([math]::abs($_fiatValueProfitChange))%↑";
@@ -248,7 +273,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
                 write-host -NoNewline -ForegroundColor Red -BackgroundColor Black "PDS: $([math]::abs($_fiatValueProfitChange))%↓";
             }
         }
-        write-host -NoNewline "`n";
+        write-host -NoNewline "`n`n";
 
         #if the current total profit is greater than 0 will print the % in green otherwise in red
         if ($baseCoinProfit -ge 0) {
@@ -266,11 +291,11 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
 
             #if the profit change is greater than the last profit will print the % in green otherwise in red
             if ($baseCoinProfit -ge [decimal]$profitChange[2]) {
-                write-host -ForegroundColor Green -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↑)`n`n";
+                write-host -ForegroundColor Green -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↑)";
             } else {
-                write-host -ForegroundColor Red   -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↓)`n`n";
+                write-host -ForegroundColor Red   -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↓)";
             }
-        } else { write-host "`n`n"; }
+        } else { write-host -NoNewline "`n"; }
 
 
         # ======================= #
@@ -281,9 +306,9 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         $_indNewProfit = New-Object decimal[] $pairCoin.Count;
 
         #prints a profit table
-        write-host -ForegroundColor Yellow -BackgroundColor Black "-                                            [INDIVIDUAL PROFITS]                                             -";
+        write-host -ForegroundColor Yellow -BackgroundColor Black "-                                              [INDIVIDUAL SWAPS]                                             -";
         write-host -ForegroundColor Yellow "|==============|============|=================|================|==============================================|";
-        write-host -ForegroundColor Yellow "|     From     |     To     |      Profit     |       PDS      |                    Details                   |";
+        write-host -ForegroundColor Yellow "|     From     |     To     |      Profit     |      PDS       |                    Details                   |";
         write-host -ForegroundColor Yellow "|-------------------------------------------------------------------------------------------------------------|";
 
         for ($i = 0; $i -lt $pairCoin.Count; $i++) {
@@ -358,7 +383,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         Set-Content -Path "$($filePath)profit.tr" -Value $_traceFileValue;
 
 
-        RefreshExitLoop -autoRefresh $true;
+        RefreshExitLoop -autoRefreshSeconds $autoRefreshSec;
     } catch {
         Clear-Host;
         
