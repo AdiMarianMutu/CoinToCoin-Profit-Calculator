@@ -11,7 +11,7 @@ The main usecase for this script is when you swapped a coin (example: DGB - Digi
 
 
 clear-host;
-write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v2.1.1`n`n";
+write-host -ForegroundColor Yellow -BackgroundColor Black "Developed by Mutu Adi-Marian & Powered by CryptoCompare.com | v2.1.2`n`n";
 [console]::WindowWidth=111; [console]::WindowHeight=37;
 
 # FUNCTIONS #
@@ -27,7 +27,7 @@ function GetCoinPairInfo {
 
     #the array which will contain the response from CryptoCompare's API
     $dataReturn = @(0, 0);
-
+      
     #performs the GET call
     ((New-Object System.Net.WebClient).downloadString("https://min-api.cryptocompare.com/data/pricemulti?fsyms=$fromTicker&tsyms=$toTicker,$fiatTicker&e=$ex&api_key=$apiKey") | ConvertFrom-Json) | ForEach-Object {
         if ($_.psobject.properties.value[0] -eq "Error" -and !($_.psobject.properties.value[1] -eq "$ex market does not exist for this coin pair ($toTicker-$fromTicker)")) {
@@ -111,6 +111,9 @@ $fileDefaultValue = "# Isn't mandatory to have an API Key to use CryptoCompare's
 # Anyway, you can get a free one by accessing this link https://www.cryptocompare.com/cryptopian/api-keys
 apiKey=
 
+# Hides the overall profit informations section (true or false)
+hideOverallSection=false
+
 # Autorefresh rate in seconds (leave 0 to disable)
 autorefreshRate=10
 
@@ -127,7 +130,7 @@ fiat=GBP
 # In order to calculate the swap profit, you need to add every swap you did by writing them on a new line (minimum 1 swap required)
 #
 # Template of the swap info
-# [X/Y]Z/S
+# [X/Y]Z>S
 # X = From which coin you swapped (Example: DGB)
 # Y = Coin swapped to (Example: LTC)
 # Z = Amount of coin swapped (Example 25000 DGB)
@@ -149,6 +152,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
 } else {
     try {
         $apiKey;
+        $hideOverallSection     = 0;
         $autoRefreshSec         = 10;
         $exchange;
         $baseCoin;
@@ -184,6 +188,8 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
             if (!($_s.StartsWith('#') -or [string]::IsNullOrEmpty($_s))) {
                 if ($_s.StartsWith("apiKey")) {
                     $apiKey = $_s.Substring($_s.IndexOf('=') + 1);
+                } elseif ($_s.StartsWith("hideOverallSection")) { 
+                    $hideOverallSection = $_s.Substring($_s.IndexOf('=') + 1);
                 } elseif ($_s.StartsWith("autorefreshRate")) {
                     $autoRefreshSec = [int]$_s.Substring($_s.IndexOf('=') + 1);
                 } elseif ($_s.StartsWith("exchange")) {
@@ -245,57 +251,59 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         #     OVERALL PROFIT      #
         # ======================= #
 
-        #calculates the new amont of 'baseCoin' gained from all the swaps
-        $baseCoinNewAmount = [math]::Round($fiatValueTotal / $baseCoinFiatValue, 4);
-        #converts the total profit in fiat for the 'baseCoin'
-        #calculates the total % profit for the 'baseCoin'
-        $baseCoinProfit = CalculatePercent -oAmount $baseCoinOriginalAmount -nAmount $baseCoinNewAmount -dRound 2;
-        #calculates the profit change from the last time for the 'baseCoin' fiat value
-        if ($profitChangeActive -eq $true) {
-            #avoids dividing by 0
-            if ($fiatValueTotal -ne 0 -and [decimal]$profitChange[1] -ne 0) {
-                $_fiatValueProfitChange = CalculatePercent -oAmount $([decimal]$profitChange[1]) -nAmount $fiatValueTotal -dRound 2;
-            } else { $_fiatValueProfitChange = 0; }
+        if ($hideOverallSection -eq $false) {
+            #calculates the new amont of 'baseCoin' gained from all the swaps
+            $baseCoinNewAmount = [math]::Round($fiatValueTotal / $baseCoinFiatValue, 4);
+            #converts the total profit in fiat for the 'baseCoin'
+            #calculates the total % profit for the 'baseCoin'
+            $baseCoinProfit = CalculatePercent -oAmount $baseCoinOriginalAmount -nAmount $baseCoinNewAmount -dRound 2;
+            #calculates the profit change from the last time for the 'baseCoin' fiat value
+            if ($profitChangeActive -eq $true) {
+                #avoids dividing by 0
+                if ($fiatValueTotal -ne 0 -and [decimal]$profitChange[1] -ne 0) {
+                    $_fiatValueProfitChange = CalculatePercent -oAmount $([decimal]$profitChange[1]) -nAmount $fiatValueTotal -dRound 2;
+                } else { $_fiatValueProfitChange = 0; }
 
-            write-host -ForegroundColor Yellow "{Overall informations | Profit Difference Since (PDS) => $($profitChange[0])}"
-        } else {
-            write-host -ForegroundColor Yellow "{Overall informations}"
-        }
+                write-host -ForegroundColor Yellow "{Overall informations | Profit Difference Since (PDS) => $($profitChange[0])}"
+            } else {
+                write-host -ForegroundColor Yellow "{Overall informations}"
+            }
 
         
-        write-host -NoNewline "[1 $($baseCoin)]:         $baseCoinFiatValue [$fiatSymbol]`nOriginal Amount: $baseCoinOriginalAmount [$baseCoin]`nCurrent Amount:  $baseCoinNewAmount [$baseCoin] => $fiatValueTotal [$fiatSymbol] ";
-        if ($fiatValueTotal -ge [decimal]$profitChange[1]) {
-            if ($profitChangeActive -eq $true) {
-                write-host -NoNewline -ForegroundColor Green -BackgroundColor Black "PDS: $([math]::abs($_fiatValueProfitChange))%↑";
-            }
-        } else {
-            if ($profitChangeActive -eq $true) {
-                write-host -NoNewline -ForegroundColor Red -BackgroundColor Black "PDS: $([math]::abs($_fiatValueProfitChange))%↓";
-            }
-        }
-        write-host -NoNewline "`n`n";
-
-        #if the current total profit is greater than 0 will print the % in green otherwise in red
-        if ($baseCoinProfit -ge 0) {
-            write-host -NoNewline -ForegroundColor Green -BackgroundColor Black "Total Profit:   $([math]::abs($baseCoinProfit))%↑";
-        } else {
-            write-host -NoNewline -ForegroundColor Red   -BackgroundColor Black "Total Profit:   $([math]::abs($baseCoinProfit))%↓";
-        }
-
-        if ($profitChangeActive -eq $true) {
-            #calculates the profit change from the last time for the 'baseCoin' (TOTAL PROFIT)
-            #avoids dividing by 0
-            if ([decimal]$profitChange[2] -ne 0) {
-                $_profitChange = CalculatePercent -oAmount $([decimal]$profitChange[2]) -nAmount $baseCoinProfit -dRound 2;
-            } else { $_profitChange = $baseCoinProfit; }
-
-            #if the profit change is greater than the last profit will print the % in green otherwise in red
-            if ($baseCoinProfit -ge [decimal]$profitChange[2]) {
-                write-host -ForegroundColor Green -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↑)";
+            write-host -NoNewline "[1 $($baseCoin)]:         $baseCoinFiatValue [$fiatSymbol]`nOriginal Amount: $baseCoinOriginalAmount [$baseCoin]`nCurrent Amount:  $baseCoinNewAmount [$baseCoin] => $fiatValueTotal [$fiatSymbol] ";
+            if ($fiatValueTotal -ge [decimal]$profitChange[1]) {
+                if ($profitChangeActive -eq $true) {
+                    write-host -NoNewline -ForegroundColor Green -BackgroundColor Black "PDS: $([math]::abs($_fiatValueProfitChange))%↑";
+                }
             } else {
-                write-host -ForegroundColor Red   -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↓)";
+                if ($profitChangeActive -eq $true) {
+                    write-host -NoNewline -ForegroundColor Red -BackgroundColor Black "PDS: $([math]::abs($_fiatValueProfitChange))%↓";
+                }
             }
-        } else { write-host -NoNewline "`n"; }
+            write-host -NoNewline "`n`n";
+
+            #if the current total profit is greater than 0 will print the % in green otherwise in red
+            if ($baseCoinProfit -ge 0) {
+                write-host -NoNewline -ForegroundColor Green -BackgroundColor Black "Total Profit:   $([math]::abs($baseCoinProfit))%↑";
+            } else {
+                write-host -NoNewline -ForegroundColor Red   -BackgroundColor Black "Total Profit:   $([math]::abs($baseCoinProfit))%↓";
+            }
+
+            if ($profitChangeActive -eq $true) {
+                #calculates the profit change from the last time for the 'baseCoin' (TOTAL PROFIT)
+                #avoids dividing by 0
+                if ([decimal]$profitChange[2] -ne 0) {
+                    $_profitChange = CalculatePercent -oAmount $([decimal]$profitChange[2]) -nAmount $baseCoinProfit -dRound 2;
+                } else { $_profitChange = $baseCoinProfit; }
+
+                #if the profit change is greater than the last profit will print the % in green otherwise in red
+                if ($baseCoinProfit -ge [decimal]$profitChange[2]) {
+                    write-host -ForegroundColor Green -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↑)";
+                } else {
+                    write-host -ForegroundColor Red   -BackgroundColor Black " (PDS: $([math]::abs($_profitChange))%↓)";
+                }
+            } else { write-host -NoNewline "`n"; }
+        }
 
 
         # ======================= #
@@ -306,6 +314,10 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
         $_indNewProfit = New-Object decimal[] $pairCoin.Count;
 
         #prints a profit table
+        if ($hideOverallSection -eq $true -and $profitChangeActive -eq $true) {
+            write-host -ForegroundColor Yellow "Profit Difference Since (PDS) => $($profitChange[0])`n";
+        }
+
         write-host -ForegroundColor Yellow -BackgroundColor Black "-                                              [INDIVIDUAL SWAPS]                                             -";
         write-host -ForegroundColor Yellow "|==============|============|=================|================|==============================================|";
         write-host -ForegroundColor Yellow "|     From     |     To     |      Profit     |      PDS       |                    Details                   |";
@@ -350,7 +362,7 @@ if (!(Test-Path -Path "$($filePath)main.txt")) {
             #prints the 'Details' section
 
             #prints the conversion infos
-            write-host -NoNewline -ForegroundColor Yellow ((("| 1 " + $pairCoin[$i][1] + ' = ' + ([decimal]$pairCoin[$i][4]) + ' ' + $pairCoin[$i][0] + " => " + ($pairCoin[$i][5]) + $fiatSymbol).PadRight(47, ' ')) + "|`n|");
+            write-host -NoNewline -ForegroundColor Yellow ((("| 1 " + $pairCoin[$i][1] + ' = ' + ([decimal]$pairCoin[$i][4]) + ' ' + $pairCoin[$i][0] + " => " + $pairCoin[$i][5] + ' ' + $fiatSymbol).PadRight(47, ' ')) + "|`n|");
             #prints the 'Original Amount'
             write-host -NoNewline -ForegroundColor Yellow (("| Original Amount:  " + $pairCoin[$i][2] + ' ' + $pairCoin[$i][0]).PadLeft(66 + $pairCoin[$i][0].Length + 17 + $pairCoin[$i][2].Length, ' ').PadRight(109, ' ') + "|`n|");
             #prints the 'Current Amount' highlighted
